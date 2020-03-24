@@ -1,7 +1,8 @@
 const express = require("express");
 const Users = require("./userModel.js");
 const bcrypt = require("bcryptjs");
-// const restricted = require("../auth/restricted-middleware.js");
+const jwt = require("jsonwebtoken");
+const restricted = require("../auth/restricted-middleware.js");
 
 const router = express.Router();
 
@@ -26,7 +27,9 @@ router.post("/login", (req, res) => {
   Users.findBy({ username })
     .then((user) => {
       if (user && bcrypt.compareSync(password, user.password)) {
-        res.status(200).json({ username: user.username });
+        const token = generateToken(user);
+
+        res.status(200).json({ username: user.username, token: token });
       } else {
         res.status(401).json({ message: "User is not authorized." });
       }
@@ -36,7 +39,7 @@ router.post("/login", (req, res) => {
     });
 });
 
-router.get("/users", (req, res) => {
+router.get("/users", restricted, (req, res) => {
   Users.find()
     .then((response) => {
       res.status(200).json(response);
@@ -45,5 +48,20 @@ router.get("/users", (req, res) => {
       res.status(400).json({ message: "You shall not pass" });
     });
 });
+
+function generateToken(user) {
+  const payload = {
+    subject: "user",
+    id: user.id,
+    username: user.username
+  };
+
+  const secrets = "secret key to edit token";
+
+  const options = {
+    expiresIn: "8h"
+  };
+  return jwt.sign(payload, secrets, options);
+}
 
 module.exports = router;
